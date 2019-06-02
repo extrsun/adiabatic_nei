@@ -286,7 +286,7 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
       print("*** ERROR: no such ionic fraction file %s. Exiting ***" \
         % (ionfile))
       return -1
-    ionfrac = pickle.load(open(rootpath+ionfile,'rb'))
+    ionfrac = pickle.load(open(ionfile,'rb'))
   elif isinstance(ionfracfile, dict):
     ionfrac = ionfracfile
   else:
