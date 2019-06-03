@@ -16,7 +16,8 @@ Zlist = [1,2,6,7,8,10,12,14,16,18,20,26,28]
 confile = rootpath+'adia.exp_phy.info'
 conditions = ascii.read(confile)
 ncondi = len(conditions)
-condi_index = range(0,ncondi)
+# condi_index = range(0,ncondi)
+condi_index = [26, 100, 125, 200, 250, 283, 342]
 
 # set up spectral bins
 # mineng = 0.1
@@ -25,7 +26,7 @@ condi_index = range(0,ncondi)
 # ebins = np.linspace(mineng,maxeng,nbins)
 minlambda = 6.2 #Angstrom
 maxlambda = 124. #Angstrom
-nlambda   = 2000
+nlambda   = 200
 lbins = np.linspace(minlambda, maxlambda, nlambda)
 ebins = pyatomdb.const.HC_IN_KEV_A/lbins
 ebins = ebins[::-1]
@@ -46,6 +47,7 @@ cie_physderi.deri_cie_spectrum(Zlist, condifile=conditions, \
 now2 = datetime.now().hour*3600. + datetime.now().minute*60. + \
        datetime.now().second + datetime.now().microsecond/1e6
 print("Time Consuming:%7.2f sec." % (now2-now1))
+
 now1 = datetime.now().hour*3600. + datetime.now().minute*60. + \
        datetime.now().second + datetime.now().microsecond/1e6
 cie_physderi.deri_cie_spectrum(Zlist, condifile=conditions, \

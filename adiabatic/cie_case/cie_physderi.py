@@ -9,6 +9,11 @@ V0.3 - Wei Sun, Jun 03, 2019: add keyword "dolines" to calculate
        pure continuum spectrum
 """
 
+try:
+  import astropy.io.fits as pyfits
+except ImportError:
+  import pyfits
+
 import pickle, os
 import numpy as np
 import pyatomdb
@@ -100,7 +105,7 @@ def deri_cie_ionfrac(Zlist, condifile='adia.exp_phy.info', \
     ionfrac[Z] = np.zeros([Z+1,ncondi],dtype=float)
 
   for l in condi_index:
-    print('For Zone-%03d...' % l, end='')
+    print('For Zone-%03d...' % l)
     for Z in Zlist:
       ionfrac[Z][:,l] = pyatomdb.atomdb.get_ionfrac(ionbalfile, \
                           Z, te_arr[l])
@@ -272,7 +277,7 @@ def deri_cie_spectrum(Zlist, condifile="adia.exp_phy.info", \
   # The radius/zone cycle
   for l in condi_index:
     print('For Reg-%03d: R=%10.3e, kT=%4.2f keV:...' % \
-      (l, trans_R[l], trans_te[l]), end='')
+      (l, trans_R[l], trans_te[l]))
 
     # Derive the spectrum for one zone
     spec1 = pyatomdb.spectrum.make_spectrum(ebins, ite[l],

@@ -10,6 +10,11 @@ V0.4 - Wei Sun, Jun 03, 2019: add keyword "dolines" to calculate
        pure continuum spectrum
 """
 
+try:
+  import astropy.io.fits as pyfits
+except ImportError:
+  import pyfits
+
 import pickle, os
 import numpy as np
 import pyatomdb
@@ -157,7 +162,7 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
     trans_ne = conditions[l-1]['dens'] #n_electron of zone
     trans_R  = conditions[l]['R'] #radius of zone
     trans_v  = conditions[l-1]['velo'] #plasma velocity
-    print('For Zone-%03d: R=%10.3e:...' % (l, trans_R), end='')
+    print('For Zone-%03d: R=%10.3e:...' % (l, trans_R))
     # Derived parameter
     trans_dr = trans_R - conditions[l-1]['R'] #thickness
     trans_time = trans_dr/trans_v #travelling time, in s
@@ -359,7 +364,7 @@ def calc_nei_spectrum(Zlist, outfilename=False, condifile=False, \
         spec_total[Z] = old_spec[Z][0:ncondi,:]
 
   for l in condi_index:
-    print('For Zone-%03d:...' %l, end='')
+    print('For Zone-%03d:...' %l)
     for Z in Zlist:
       one_spec = np.zeros(nbins,dtype=float)
       for iZ in range(1,Z+2):
