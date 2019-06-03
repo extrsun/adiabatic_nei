@@ -104,6 +104,10 @@ venv.bak/
 .mypy_cache/
 
 # pickle file backup
-backup/
-nei_case/backup/
-cie_case/backup/
+adiabatic/backup/
+adiabatic/nei_case/backup/
+adiabatic/cie_case/backup/
+
+# spectrum of the pickle file
+adiabatic/nei_case/tcspec_nei.pkl
+adiatatic/nei_case/tcspec_comp_nei.pkl
