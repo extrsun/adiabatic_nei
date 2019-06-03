@@ -3,9 +3,11 @@ The physcalc module contains the routine that calculates the ionic
 fraction and the NEI X-ray spectrum based on the physical conditions
 in an ASCII file.
 
-Version 0.1 - Wei Sun, May 22, 2019: initial release
-Version 0.2 - Wei Sun, May 28, 2019: separate the CIE and NEI case
-Version 0.3 - Wei Sun, Jun 01, 2019: standardize for github uploading
+V0.1 - Wei Sun, May 22, 2019: initial release
+V0.2 - Wei Sun, May 28, 2019: separate the CIE and NEI case
+V0.3 - Wei Sun, Jun 01, 2019: standardize for github uploading
+V0.4 - Wei Sun, Jun 03, 2019: add keyword "dolines" to calculate
+       pure continuum spectrum
 """
 
 import pickle, os
@@ -140,12 +142,12 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
       ion_init[Z] = pyatomdb.atomdb.get_ionfrac(ionbalfile,
                       Z, te_init)
       ionfrac[Z][:,0] = ion_init[Z]
-  
+
   # Deal with the ending index
   if (not pyatomdb.util.keyword_check(end_index)) or end_index < 0 \
      or end_index >= ncondi:
     end_index = ncondi-1
-  
+
   condi_index = range(begin_index+1,end_index+1)
 
   # The radius/zone cycle
@@ -177,16 +179,16 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
   pickle.dump(ionfrac,tmp)
   tmp.close()
   return 0
-  
+
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
-def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
-  ebins=False, ionfracfile=False, outfilename=False, \
+def calc_nei_spectrum(Zlist, outfilename=False, condifile=False, \
+  condi_index=False, ebins=False, ionfracfile=False, \
   linefile="$ATOMDB/apec_nei_line.fits", \
   cocofile="$ATOMDB/apec_nei_comp.fits", \
-  appfile=False, rootpath=False):
+  dolines=True, appfile=False, rootpath=False):
 
   """
   calculate the NEI X-ray spectrum, based on the ionic fraction derived
@@ -235,7 +237,7 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
   # System parameter
   if not pyatomdb.util.keyword_check(rootpath):
     rootpath = os.getcwd()+'/'
-  
+
   # Output file name
   if not pyatomdb.util.keyword_check(outfilename):
     if pyatomdb.util.keyword_check(appfile):
@@ -245,11 +247,11 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
       for Z in Zlist:
         outfilename += pyatomdb.atomic.Ztoelsymb(Z)
       outfilename += '.pkl'
-  
+
   # Deal with the element list
   NZlist = len(Zlist)
   Zmax = np.max(Zlist)
-  
+
   # Check the setting of the condition array
   if pyatomdb.util.keyword_check(condifile):
     # If it is a string, look for the file name and read it if exists
@@ -274,6 +276,15 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
       print("*** Supplied condition index is illegal. Exiting. ***")
       return -1
 
+  # Set up spectral bins
+  if not pyatomdb.util.keyword_check(ebins):
+    mineng = 0.1
+    maxeng = 2.0
+    nbins = 190
+    ebins = np.linspace(mineng,maxeng,nbins)
+  else:
+    nbins = len(ebins)
+
   # Read the ionic fraction
   if not pyatomdb.util.keyword_check(ionfracfile):
     ionfracfile = 'tionfrac_'
@@ -294,15 +305,32 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
       "string or an ASCIIList.")
     return -1
 
-  # Set up spectral bins
-  if not pyatomdb.util.keyword_check(ebins):
-    mineng = 0.1
-    maxeng = 2.0
-    nbins = 190
-    ebins = np.linspace(mineng,maxeng,nbins)
+  #Read the emissivity files, if "linefile" and "cocofile" are strings
+  if isinstance(linefile, str):
+    lfile = os.path.expandvars(linefile)
+    if not os.path.isfile(lfile):
+      print("*** ERROR: no such file %s. Exiting ***" %(lfile))
+      return -1
+    ldat = pyfits.open(lfile)
+  elif isinstance(linefile, pyfits.hdu.hdulist.HDUList):
+    # no need to do anything, file is already open
+    ldat = linefile
   else:
-    nbins = len(ebins)
-
+    print("Unknown data type for linefile. Please pass a string or an HDUList")
+    return -1
+  if isinstance(cocofile, str):
+    cfile = os.path.expandvars(cocofile)
+    if not os.path.isfile(cfile):
+      print("*** ERROR: no such file %s. Exiting ***" %(cfile))
+      return -1
+    cdat = pyfits.open(cfile)
+  elif isinstance(cocofile, pyfits.hdu.hdulist.HDUList):
+    # no need to do anything, file is already open
+    cdat = cocofile
+  else:
+    print("Unknown data type for cocofile. Please pass a string or an HDUList")
+    return -1
+  
   # Find HDU with kT closest to desired kT in given line or coco file
   # ite = pyatomdb.spectrum.get_index(trans_te)
   # Get HDU with kT closest to-but-less than desired kT
@@ -336,16 +364,16 @@ def calc_nei_spectrum(Zlist, condifile=False, condi_index=False, \
       one_spec = np.zeros(nbins,dtype=float)
       for iZ in range(1,Z+2):
         spec1 = pyatomdb.spectrum.make_ion_spectrum(ebins, ite[l], Z, \
-                  iZ, nei=True, dummyfirst=True, linefile=linefile, \
-                  cocofile=cocofile)
+                  iZ, nei=True, dummyfirst=True, linefile=ldat, \
+                  cocofile=cdat, dolines=dolines)
         spec2 = pyatomdb.spectrum.make_ion_spectrum(ebins, ite[l]+1, Z,
-                  iZ, nei=True, dummyfirst=True, linefile=linefile, \
-                  cocofile=cocofile)
+                  iZ, nei=True, dummyfirst=True, linefile=ldat, \
+                  cocofile=cdat, dolines=dolines)
         tspec = spec1*fact1[l]+spec2*fact2[l]
         one_spec += ionfrac[Z][iZ-1,l]*tspec
 
       spec_total[Z][l,:] = one_spec
-      print("  finished.")
+    print("  finished.")
 
   # Save derived spectrum as pickle file
   tmp = open(rootpath+outfilename,'wb')

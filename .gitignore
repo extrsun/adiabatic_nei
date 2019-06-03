@@ -102,3 +102,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# pickle file backup
+backup/
+nei_case/backup/
+cie_case/backup/

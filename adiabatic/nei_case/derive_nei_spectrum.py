@@ -16,13 +16,20 @@ Zlist = [1,2,6,7,8,10,12,14,16,18,20,26,28]
 confile = rootpath+'adia.exp_phy.info'
 conditions = ascii.read(confile)
 ncondi = len(conditions)
-condi_index = range(0,ncondi)
+# condi_index = range(0,ncondi)
+condi_index = [26, 100, 125, 200, 250, 283, 342]
 
 # set up spectral bins
-mineng = 0.1
-maxeng = 2.0
-nbins = 190
-ebins = np.linspace(mineng,maxeng,nbins)
+# mineng = 0.1
+# maxeng = 2.0
+# nbins = 190
+# ebins = np.linspace(mineng,maxeng,nbins)
+minlambda = 6.2 #Angstrom
+maxlambda = 124. #Angstrom
+nlambda   = 2000
+lbins = np.linspace(minlambda, maxlambda, nlambda)
+ebins = pyatomdb.const.HC_IN_KEV_A/lbins
+ebins = ebins[::-1]
 
 # pre-open the emissivity files
 linefile  = \
@@ -33,25 +40,35 @@ cocofile  = \
 # spectrum calculation
 now1 = datetime.now().hour*3600. + datetime.now().minute*60. + \
        datetime.now().second + datetime.now().microsecond/1e6
-for Z in Zlist:
-  nei_physcalc.calc_nei_spectrum([Z], condifile=conditions, \
-                 condi_index=condi_index, ebins=ebins, \
-                 linefile=linefile, cocofile=cocofile, \
-                 ionfracfile='tionfrac_'+ \
-                   pyatomdb.atomic.Ztoelsymb(Z)+'.pkl')
+nei_physcalc.calc_nei_spectrum(Zlist, condifile=conditions, \
+               condi_index=condi_index, ebins=ebins, \
+               linefile=linefile, cocofile=cocofile, \
+               ionfracfile='tionfrac_nei.pkl', \
+               outfilename='tcspec_nei.pkl')
 now2 = datetime.now().hour*3600. + datetime.now().minute*60. + \
        datetime.now().second + datetime.now().microsecond/1e6
 print("Time Consuming:%7.2f sec." % (now2-now1))
 
-# Combine the spectrum file
-comb_spec = {}
-for Z in Zlist:
-  zspec = pickle.load(open(rootpath+'tspec_'+ \
-                 pyatomdb.atomic.Ztoelsymb(Z)+'.pkl','rb'))
-  comb_spec[Z] = zspec[Z]
-comb_spec['ebins'] = zspec['ebins']
+# # Combine the spectrum file
+# comb_spec = {}
+# for Z in Zlist:
+#   zspec = pickle.load(open(rootpath+'tspec_'+ \
+#                  pyatomdb.atomic.Ztoelsymb(Z)+'.pkl','rb'))
+#   comb_spec[Z] = zspec[Z]
+# comb_spec['ebins'] = zspec['ebins']
+#
+# tmp = open(rootpath+'tcspec_nei.pkl','wb')
+# pickle.dump(comb_spec,tmp)
+# tmp.close()
 
-tmp = open(rootpath+'tcspec_nei.pkl','wb')
-pickle.dump(comb_spec,tmp)
-tmp.close()
-
+now1 = datetime.now().hour*3600. + datetime.now().minute*60. + \
+       datetime.now().second + datetime.now().microsecond/1e6
+nei_physcalc.calc_nei_spectrum(Zlist, condifile=conditions, \
+               condi_index=condi_index, ebins=ebins, \
+               linefile=linefile, cocofile=cocofile, \
+               ionfracfile='tionfrac_nei.pkl', \
+               outfilename='tcspec_comp_nei.pkl', \
+               dolines=False)
+now2 = datetime.now().hour*3600. + datetime.now().minute*60. + \
+       datetime.now().second + datetime.now().microsecond/1e6
+print("Time Consuming:%7.2f sec." % (now2-now1))

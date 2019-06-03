@@ -3,8 +3,10 @@ The physcalc module contains the routine that gathering the ionic
 fraction and the X-ray spectrum of CIE based on the physical
 conditions in an ASCII file.
 
-Version 0.1 - Wei Sun, May 28, 2019: initial release
-Version 0.2 - Wei Sun, Jun 01, 2019: standardize for github uploading
+V0.1 - Wei Sun, May 28, 2019: initial release
+V0.2 - Wei Sun, Jun 01, 2019: standardize for github uploading
+V0.3 - Wei Sun, Jun 03, 2019: add keyword "dolines" to calculate
+       pure continuum spectrum
 """
 
 import pickle, os
@@ -113,7 +115,7 @@ def deri_cie_ionfrac(Zlist, condifile='adia.exp_phy.info', \
 def deri_cie_spectrum(Zlist, condifile="adia.exp_phy.info", \
   condi_index=False, ebins=False, outfilename=False, appfile=False, \
   linefile="$ATOMDB/apec_line.fits",cocofile="$ATOMDB/apec_coco.fits", \
-  rootpath=False):
+  dolines=True, rootpath=False):
 
   """
   calculate the CIE X-ray spectrum, based on the ionic fraction derived
@@ -230,30 +232,58 @@ def deri_cie_spectrum(Zlist, condifile="adia.exp_phy.info", \
       print("*** Supplied condition index is illegal. Exiting. ***")
       return -1
 
+  #Read the emissivity files, if "linefile" and "cocofile" are strings
+  if isinstance(linefile, str):
+    lfile = os.path.expandvars(linefile)
+    if not os.path.isfile(lfile):
+      print("*** ERROR: no such file %s. Exiting ***" %(lfile))
+      return -1
+    ldat = pyfits.open(lfile)
+  elif isinstance(linefile, pyfits.hdu.hdulist.HDUList):
+    # no need to do anything, file is already open
+    ldat = linefile
+  else:
+    print("Unknown data type for linefile. Please pass a string or an HDUList")
+    return -1
+  if isinstance(cocofile, str):
+    cfile = os.path.expandvars(cocofile)
+    if not os.path.isfile(cfile):
+      print("*** ERROR: no such file %s. Exiting ***" %(cfile))
+      return -1
+    cdat = pyfits.open(cfile)
+  elif isinstance(cocofile, pyfits.hdu.hdulist.HDUList):
+    # no need to do anything, file is already open
+    cdat = cocofile
+  else:
+    print("Unknown data type for cocofile. Please pass a string or an HDUList")
+    return -1
+  
+  # Tabled parameter
+  trans_te = conditions['kT'] #temperature of zone
+  trans_R  = conditions['R'] #radius of zone
+  # # Find HDU with kT closest to desired kT in given line or coco file
+  # ite = pyatomdb.spectrum.get_index(trans_te)
+  # Get HDU with kT closest to-but-less than desired kT
+  fl_ind = np.log10(trans_te/pyatomdb.const.KBOLTZ)*10-40+2
+  ite    = np.int16(fl_ind)
+  fact1  = 1.0-(fl_ind-ite)
+  fact2  = fl_ind-ite
+
   # The radius/zone cycle
   for l in condi_index:
-    # Tabled parameter
-    trans_te = conditions[l]['kT'] #temperature of zone
-    trans_R  = conditions[l]['R'] #radius of zone
     print('For Reg-%03d: R=%10.3e, kT=%4.2f keV:...' % \
-      (l, trans_R, trans_te), end='')
-
-    # # Find HDU with kT closest to desired kT in given line or coco file
-    # ite = pyatomdb.spectrum.get_index(trans_te)
-    # Get HDU with kT closest to-but-less than desired kT
-    fl_ind = np.log10(trans_te/pyatomdb.const.KBOLTZ)*10-40+2
-    ite    = np.int16(fl_ind)
-    fact1  = 1.0-(fl_ind-ite)
-    fact2  = fl_ind-ite
+      (l, trans_R[l], trans_te[l]), end='')
 
     # Derive the spectrum for one zone
-    spec1 = pyatomdb.spectrum.make_spectrum(ebins, ite,
+    spec1 = pyatomdb.spectrum.make_spectrum(ebins, ite[l],
               elements = Zlist, dummyfirst=True, \
-              linefile=linefile, cocofile=cocofile)
-    spec2 = pyatomdb.spectrum.make_spectrum(ebins, ite+1,
+              linefile=ldat, cocofile=cdat, \
+              dolines=dolines)
+    spec2 = pyatomdb.spectrum.make_spectrum(ebins, ite[l]+1,
               elements = Zlist, dummyfirst=True, \
-              linefile=linefile, cocofile=cocofile)
-    tspec = spec1*fact1+spec2*fact2
+              linefile=ldat, cocofile=cdat, \
+              dolines=dolines)
+    tspec = spec1*fact1[l]+spec2*fact2[l]
     spec_total[l,:]=tspec
     print('  Finished.')
 
