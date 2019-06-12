@@ -111,3 +111,19 @@ adiabatic/cie_case/backup/
 # spectrum of the pickle file
 adiabatic/nei_case/tcspec_nei.pkl
 adiatatic/nei_case/tcspec_comp_nei.pkl
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
