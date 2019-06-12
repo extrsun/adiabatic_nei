@@ -57,7 +57,7 @@ for i in condi_index:
   plt.ylabel('10$^{-14}$ Cts s$^{-1}$ cm$^3$ keV$^{-1}$')
   plt.legend(loc=0)
   plt.xlim([0.1,2.0])
-  plt.ylim([1e-3,1e2])
+  plt.ylim([1e-3,1e3])
   radius=conditions[i]['R']/3.0856780e+18
   plt.savefig(rootpath+'figures/comp_spec/testmodel_comp_r%4.2fpc.png' % radius)
   plt.close()
