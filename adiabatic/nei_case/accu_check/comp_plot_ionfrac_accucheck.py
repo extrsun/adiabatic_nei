@@ -38,11 +38,10 @@ for Z in Zlist:
   elsymb = pyatomdb.atomic.Ztoelsymb(Z)
   if Z == 26:
     begin_ion = 16
-    ion_range = [16,17,18,19,20,21,25]
+    ion_range = [16,17,18,19,20,21,22]
   else:
     begin_ion = Z-5
     ion_range = range(begin_ion,Z+1)
-  # ax = plt.figure()
   for i in ion_range:
     plt.plot(radius, nei1_ionfrac[Z][i,0:ncondi], color='C'+"%s"%(i-begin_ion), \
       linewidth=2, label=elsymb+' '+pyatomdb.atomic.int2roman(i+1))
