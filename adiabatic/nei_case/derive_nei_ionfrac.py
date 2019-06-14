@@ -10,7 +10,8 @@ import multiprocessing as mp
 
 #system parameters
 rootpath = os.getcwd()+'/'
-Zlist = [1,2,6,7,8,10,12,14,16,18,20,26,28]
+# Zlist = [1,2,6,7,8,10,12,14,16,18,20,26,28]
+Zlist = [6]
 
 #Read the condition file
 confile = rootpath+'adia.exp_phy.info'
@@ -30,6 +31,7 @@ now2 = datetime.now().hour*3600. + datetime.now().minute*60. + \
 print("Time Consuming:%7.2f sec." % (now2-now1))
 
 #Combine the ionic fraction file
+Zlist = [1,2,6,7,8,10,12,14,16,18,20,26,28]
 comb_ionfrac = {}
 for Z in Zlist:
   zionfrac = pickle.load(open(rootpath+'tionfrac_'+ \

@@ -155,30 +155,30 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
 
   condi_index = range(begin_index+1,end_index+1)
 
-  # # The radius/zone cycle
-  # for l in condi_index:
-  #   # Tabled parameter
-  #   trans_te = conditions[l-1]['kT'] #temperature of zone
-  #   trans_ne = conditions[l-1]['dens'] #n_electron of zone
-  #   trans_R  = conditions[l]['R'] #radius of zone
-  #   trans_v  = conditions[l-1]['velo'] #plasma velocity
-  #   print('For Zone-%03d: R=%10.3e:...' % (l, trans_R), \
-  #     end='', flush=True)
-  #   # Derived parameter
-  #   trans_dr = trans_R - conditions[l-1]['R'] #thickness
-  #   trans_time = trans_dr/trans_v #travelling time, in s
-  #   trans_tau  = trans_time*trans_ne #timescale, in cm-3 s
-  #
-  #   # Calculate the ionic fraction (MOST IMPORTANT!)
-  #   # ionbal = pyatomdb.apec.calc_full_ionbal(trans_te, tau=trans_tau,
-  #   #            init_pop=ion_init, Zlist=Zlist, teunit='keV', cie=False)
-  #   ionbal = {}
-  #   for Z in Zlist:
-  #     ionbal[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, trans_te, \
-  #                   init_pop=ion_init[Z], tau=trans_tau, teunit='keV')
-  #     ionfrac[Z][:,l] = ionbal[Z]
-  #   ion_init = ionbal
-  #   print('  finished.')
+  # The radius/zone cycle
+  for l in condi_index:
+    # Tabled parameter
+    trans_te = conditions[l-1]['kT'] #temperature of zone
+    trans_ne = conditions[l-1]['dens'] #n_electron of zone
+    trans_R  = conditions[l]['R'] #radius of zone
+    trans_v  = conditions[l-1]['velo'] #plasma velocity
+    print('For Zone-%03d: R=%10.3e:...' % (l, trans_R), \
+      end='', flush=True)
+    # Derived parameter
+    trans_dr = trans_R - conditions[l-1]['R'] #thickness
+    trans_time = trans_dr/trans_v #travelling time, in s
+    trans_tau  = trans_time*trans_ne #timescale, in cm-3 s
+
+    # Calculate the ionic fraction (MOST IMPORTANT!)
+    # ionbal = pyatomdb.apec.calc_full_ionbal(trans_te, tau=trans_tau,
+    #            init_pop=ion_init, Zlist=Zlist, teunit='keV', cie=False)
+    ionbal = {}
+    for Z in Zlist:
+      ionbal[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, trans_te, \
+                    init_pop=ion_init[Z], tau=trans_tau, teunit='keV')
+      ionfrac[Z][:,l] = ionbal[Z]
+    ion_init = ionbal
+    print('  finished.')
 
   # Save calculated ionic fraction as pickle file
   tmp = open(outfilename,'wb')

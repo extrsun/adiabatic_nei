@@ -11,7 +11,8 @@ pro prof_plot
 ;-
 
   ;System parameter
-  rootpath='~/data/emcal/model/cc85/analytical/adiabatic/model_check/'
+  rootpath='~/data/emcal/model/cc85/analytical/adiabatic/'+ $
+    'adiabatic_nei/adiabatic/model_check/'
   figpath =rootpath+'figures/'
   
   ;Plot parameter

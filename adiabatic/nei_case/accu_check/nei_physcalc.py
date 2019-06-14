@@ -18,8 +18,9 @@ except ImportError:
 import pickle, os
 import numpy as np
 import pyatomdb
-from astropy.io import ascii
 import astropy
+from astropy.io import ascii
+from scipy.signal import find_peaks
 
 def calc_nei_ionfrac(Zlist, condifile=False, diff_thres=False, \
   init_file=False, begin_index=False, end_index=False, outfilename=False, \
@@ -173,57 +174,125 @@ def calc_nei_ionfrac(Zlist, condifile=False, diff_thres=False, \
   meandens[1:] = (dens_arr[1:]+dens_arr[0:(ncondi-1)])/2
   tau_arr  = time_arr * meandens
   
-  # ionic fraction calculations
-  iind, find = begin_index, end_index
-  mind = int((iind+find) / 2)
+  # Find the extreme values in the temperature array
+  res1, _  = find_peaks(temp_arr)
+  res2, _  = find_peaks(-temp_arr)
+  extr_ind = np.sort(np.concatenate(([begin_index,end_index],res1,res2)))
+  nextreme = len(extr_ind)
   
-  m_te = temp_arr[mind]
-  taut = np.sum(tau_arr)
-  ionbal_t = {}
-  for Z in Zlist:
-    ionbal_t[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
-                  init_pop=ion_init[Z], tau=taut, teunit='keV')
-  
-  while iind < end_index:
-    # Tabled parameter
-    # i_te, m_te, f_te = temp_arr[[iind, mind, find]]
-    m_te = temp_arr[mind]
-    # Derived parameter
-    tau1 = np.sum(tau_arr[(iind+1):(mind+1)])
-    tau2 = np.sum(tau_arr[(mind+1):(find+1)])
-    # taut = tau1 + tau2
+  for i in range(0,nextreme-1):
+    iind = extr_ind[i]
+    find = extr_ind[i+1]
+        
+    while iind < extr_ind[i+1]:
+      taut = np.sum(tau_arr[(iind+1):(find+1)])
     
-    # Calculate the ionic fraction in one and two steps
-    if mind > iind:
-      ionbal_1 = {}
-      ionbal_2 = {}
+      # Derive the ionic fraction using the eletron temperature
+      # at the beginning and the ending positions
+      ionbal_l = {}
+      ionbal_r = {}
       for Z in Zlist:
-        ionbal_1[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
-                      init_pop=ion_init[Z], tau=tau1, teunit='keV')
-        ionbal_2[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
-                      init_pop=ionbal_1[Z], tau=tau2, teunit='keV')
+        ionbal_l[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, temp_arr[iind], \
+                      init_pop=ion_init[Z], tau=taut, teunit='keV')
+      for Z in Zlist:
+        ionbal_r[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, temp_arr[find], \
+                      init_pop=ion_init[Z], tau=taut, teunit='keV')
       # Compare the ionic fractions derived in one and two steps
       maxdiff = 0.0
       for Z in Zlist:
         # for iZ in range(0,Z+1):
-        #   maxdiff = max([np.abs(ionbal_t[Z][iZ]-ionbal_2[Z][iZ]) / \
-        #                    max([ionbal_t[Z][iZ],1e-14]), maxdiff])
-        maxdiff = max([max(np.abs(ionbal_t[Z]-ionbal_2[Z])),maxdiff])
+        #   maxdiff = max([np.abs(ionbal_l[Z][iZ]-ionbal_r[Z][iZ]) / \
+        #                    max([ionbal_l[Z][iZ],ionbal_r[Z][iZ],1e-5]), \
+        #                  maxdiff])
+          # print(maxdiff)
+        maxdiff = max([max(np.abs(ionbal_l[Z]-ionbal_r[Z])),maxdiff])
+    
+      print(iind,find)
+      print(ionbal_l[Z])
+      print(ionbal_r[Z])
+      print(maxdiff,taut/1e7)
       if maxdiff > diff_thres:
-        find = mind
-        mind = int((iind+find)/2)
-        ionbal_t = ionbal_1
-        continue
-
-    accum_tau = np.cumsum(tau_arr[iind:(find+1)]) - tau_arr[iind]
-    for Z in Zlist:
-      for iZ in range(0,Z+1):
-        ionfrac[Z][iZ,iind:(find+1)] = \
-          np.interp(accum_tau,[0,taut], \
-               [ion_init[Z][iZ],ionbal_t[Z][iZ]])
-    ion_init = ionbal_t
-    iind, find = find, min([find*2-iind+2, end_index])
-    mind = int((iind+find)/2)
+        if find == iind+1:
+          if iind == begin_index:
+            for Z in Zlist:
+              ionfrac[Z] = ionbal_r[Z]
+            ion_init = ionbal_r
+            iind, find = find, min([find*2-iind+2, extr_ind[i+1]])
+          else:
+            print("The condition file at %d is too coarse!" % find)
+            return -1
+        else:
+          find = int((iind+find)/2)
+          continue
+      else:
+        accum_tau = np.cumsum(tau_arr[iind:(find+1)]) - tau_arr[iind]
+        for Z in Zlist:
+          for iZ in range(0,Z+1):
+            ionfrac[Z][iZ,iind:(find+1)] = \
+              np.interp(accum_tau,[0,taut], \
+                   [ion_init[Z][iZ],ionbal_r[Z][iZ]])
+        ion_init = ionbal_r
+        iind, find = find, min([find*2-iind+2, extr_ind[i+1]])
+        
+  # # ionic fraction calculations
+  # iind, find = begin_index, end_index
+  # mind = int((iind+find) / 2)
+  #
+  # m_te = temp_arr[mind]
+  # taut = np.sum(tau_arr)
+  # ionbal_t = {}
+  # for Z in Zlist:
+  #   ionbal_t[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
+  #                 init_pop=ion_init[Z], tau=taut, teunit='keV')
+  #
+  # while iind < end_index:
+  #   # Calculate the ionic fraction in one and two steps
+  #   if mind > iind:
+  #     # Tabled parameter
+  #     i_te, m_te, f_te = temp_arr[[iind, mind, find]]
+  #     # m_te = temp_arr[mind]
+  #     # Derived parameter
+  #     tau1 = np.sum(tau_arr[(iind+1):(mind+1)])
+  #     # taut = tau1 + tau2
+  #
+  #     ionbal_1 = {}
+  #     for Z in Zlist:
+  #       ionbal_1[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
+  #                     init_pop=ion_init[Z], tau=tau1, teunit='keV')
+  #
+  #     if np.abs(i_te-m_te)/m_te > 1e-2 or np.abs(f_te-m_te)/m_te > 1e-2:
+  #       find = mind
+  #       mind = int((iind+find)/2)
+  #       ionbal_t = ionbal_1
+  #       continue
+  #
+  #     tau2 = np.sum(tau_arr[(mind+1):(find+1)])
+  #     ionbal_2 = {}
+  #     for Z in Zlist:
+  #       ionbal_2[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, m_te, \
+  #                     init_pop=ionbal_1[Z], tau=tau2, teunit='keV')
+  #     # Compare the ionic fractions derived in one and two steps
+  #     maxdiff = 0.0
+  #     for Z in Zlist:
+  #       # for iZ in range(0,Z+1):
+  #       #   maxdiff = max([np.abs(ionbal_t[Z][iZ]-ionbal_2[Z][iZ]) / \
+  #       #                    max([ionbal_t[Z][iZ],1e-14]), maxdiff])
+  #       maxdiff = max([max(np.abs(ionbal_t[Z]-ionbal_2[Z])),maxdiff])
+  #     if maxdiff > diff_thres:
+  #       find = mind
+  #       mind = int((iind+find)/2)
+  #       ionbal_t = ionbal_1
+  #       continue
+  #
+  #   accum_tau = np.cumsum(tau_arr[iind:(find+1)]) - tau_arr[iind]
+  #   for Z in Zlist:
+  #     for iZ in range(0,Z+1):
+  #       ionfrac[Z][iZ,iind:(find+1)] = \
+  #         np.interp(accum_tau,[0,taut], \
+  #              [ion_init[Z][iZ],ionbal_t[Z][iZ]])
+  #   ion_init = ionbal_t
+  #   iind, find = find, min([find*2-iind+2, end_index])
+  #   mind = int((iind+find)/2)
     
   # Save calculated ionic fraction as pickle file
   tmp = open(outfilename,'wb')
