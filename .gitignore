@@ -113,5 +113,20 @@ adiabatic/nei_case/tcspec_nei.pkl
 adiatatic/nei_case/tcspec_comp_nei.pkl
 
 # Test image files
+<<<<<<< HEAD
 adiabatic/pgplot*
+=======
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
+adiabatic/test*
+
+# Test image files
+adiatatic/pgplot*
 adiabatic/test*
