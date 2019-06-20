@@ -21,8 +21,8 @@ import pyatomdb
 from astropy.io import ascii
 import astropy
 
-def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
-  begin_index=False, end_index=False, outfilename=False, rootpath=False):
+def calc_nei_ionfrac(Zlist, condifile=False, outfilename=False, \
+  init_file=False, begin_index=False, end_index=False, rootpath=False):
 
   """
   Calculate the ionic fraction based on the physical conditions in
@@ -81,14 +81,17 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
         print("*** ERROR: no such condition file %s. Exiting ***" \
           %(confile))
         return -1
-      conditions = ascii.read(confile)
+      if confile.split('.')[-1] == 'pkl':
+        conditions = pickle.load(open(confile, 'rb'))
+      else:
+        conditions = ascii.read(confile)
     elif isinstance(condifile, astropy.table.table.Table):
       conditions = condifile
     else:
       print("Unknown data type for condition file. Please pass a " \
         "string or an ASCIIList")
       return -1
-  ncondi = len(conditions)
+  ncondi = len(conditions['kT'])
 
   # The final result - ionfrac
   ionfrac = {}
@@ -136,13 +139,13 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
   # Initial ionic fraction: specified by init_file and begin_index,
   # or at r=0
   ion_init = {}
-  if pyatomdb.util.keyword_check(begin_index) and begin_index >0 \
+  if pyatomdb.util.keyword_check(begin_index) and begin_index > 0 \
      and begin_index < ncondi:
     for Z in Zlist:
       ion_init[Z] = ionfrac[Z][:,begin_index]
   else:
     begin_index = 0
-    te_init = conditions[begin_index]['kT']/pyatomdb.const.KBOLTZ #in K
+    te_init = conditions['kT'][begin_index]/pyatomdb.const.KBOLTZ #in K
     for Z in Zlist:
       ion_init[Z] = pyatomdb.atomdb.get_ionfrac(ionbalfile,
                       Z, te_init)
@@ -155,29 +158,55 @@ def calc_nei_ionfrac(Zlist, condifile=False, init_file=False, \
 
   condi_index = range(begin_index+1,end_index+1)
 
+  # Some tabled physical parameters
+  temp_arr = conditions['kT']
+  dens_arr = conditions['dens']
+  radi_arr = conditions['R']
+  velo_arr = conditions['velo']
+  # Some derived physical parameters
+  delr_arr     = np.zeros(ncondi, dtype=float)
+  delr_arr[1:] = radi_arr[1:]-radi_arr[0:(ncondi-1)]
+  meanv_arr     = np.zeros(ncondi, dtype=float)
+  meanv_arr[0]  = velo_arr[0]
+  meanv_arr[1:] = (velo_arr[1:]+velo_arr[0:(ncondi-1)])/2
+  time_arr = delr_arr / meanv_arr
+  meandens     = np.zeros(ncondi, dtype=float)
+  meandens[0]  = dens_arr[0]
+  meandens[1:] = (dens_arr[1:]+dens_arr[0:(ncondi-1)])/2
+  tau_arr  = time_arr * meandens
+  
   # The radius/zone cycle
   for l in condi_index:
-    # Tabled parameter
-    trans_te = conditions[l-1]['kT'] #temperature of zone
-    trans_ne = conditions[l-1]['dens'] #n_electron of zone
-    trans_R  = conditions[l]['R'] #radius of zone
-    trans_v  = conditions[l-1]['velo'] #plasma velocity
-    print('For Zone-%03d: R=%10.3e:...' % (l, trans_R), \
+    print('For Zone-%03d: R=%10.3e:...' % (l, radi_arr[l]), \
       end='', flush=True)
-    # Derived parameter
-    trans_dr = trans_R - conditions[l-1]['R'] #thickness
-    trans_time = trans_dr/trans_v #travelling time, in s
-    trans_tau  = trans_time*trans_ne #timescale, in cm-3 s
-
     # Calculate the ionic fraction (MOST IMPORTANT!)
-    # ionbal = pyatomdb.apec.calc_full_ionbal(trans_te, tau=trans_tau,
+    # ionbal = pyatomdb.apec.calc_full_ionbal(temp_arr[l], tau=tau_arr[l],
     #            init_pop=ion_init, Zlist=Zlist, teunit='keV', cie=False)
     ionbal = {}
     for Z in Zlist:
-      ionbal[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, trans_te, \
-                    init_pop=ion_init[Z], tau=trans_tau, teunit='keV')
+      ionbal[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, temp_arr[l-1], \
+                    init_pop=ion_init[Z], tau=tau_arr[l], teunit='keV')
       ionfrac[Z][:,l] = ionbal[Z]
     ion_init = ionbal
+    # # A test of ionic fraction difference using the electron temperature
+    # # at the beginning and the ending points
+    # ionbal_l = {}
+    # for Z in Zlist:
+    #   ionbal_l[Z] = pyatomdb.apec.solve_ionbal_eigen(Z, temp_arr[l], \
+    #                   init_pop=ion_init[Z], tau=tau_arr[l], teunit='keV')
+    # maxdiff_abs = 0.0
+    # maxdiff_rel = 0.0
+    # for Z in Zlist:
+    #   maxdiff_abs = max([max(np.abs(ionbal[Z]-ionbal_l[Z])), maxdiff_abs])
+    #   max_index = np.argmax(np.abs(ionbal[Z]-ionbal_l[Z]))
+    #   maxrelative = np.abs(ionbal[Z][max_index]-ionbal_l[Z][max_index]) / \
+    #                   max([ionbal[Z][max_index],ionbal_l[Z][max_index]])
+    #   for iZ in range(0,Z+1):
+    #     maxdiff_rel = max([np.abs(ionbal[Z][iZ]-ionbal_l[Z][iZ]) / \
+    #                          max([ionbal[Z][iZ],ionbal_l[Z][iZ],1e-7]), \
+    #                        maxdiff_rel])
+    # print("%10.4e,%10.4e,%10.4e" % (maxdiff_abs,ionbal[Z][max_index],maxdiff_rel), \
+    #       end='', flush=True)
     print('  finished.')
 
   # Save calculated ionic fraction as pickle file
